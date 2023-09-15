@@ -60,13 +60,18 @@ def _mean_squared_error_compute(sum_squared_error: Tensor, n_obs: Union[int, Ten
 
 
 def mean_squared_error(
-    preds: Tensor, target: Tensor, squared: bool = True, reduce_dims: int | tuple[int] | Literal["all"] = "all"
+    preds: Tensor,
+    target: Tensor,
+    squared: bool = True,
+    num_outputs: int | tuple[int] = 1,
+    reduce_dims: int | tuple[int] | Literal["all"] = "all",
 ) -> Tensor:
     """Compute mean squared error.
 
     Args:
         preds: estimated labels
         target: ground truth labels
+        num_outputs: shape of outputs in multioutput setting.
         squared: returns RMSE value if set to False
         reduce_dims: dimensions to reduce. Defaults to "all" meaning a
             a single number will be produced.

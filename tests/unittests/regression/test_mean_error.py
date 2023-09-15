@@ -149,7 +149,12 @@ def _multi_target_ref_metric(preds, target, sk_fn, metric_args):
     [
         (MeanSquaredError, mean_squared_error, sk_mean_squared_error, {"squared": True}),
         (MeanSquaredError, mean_squared_error, sk_mean_squared_error, {"squared": False}),
-        (MeanSquaredError, mean_squared_error, sk_mean_squared_error, {"squared": True, "num_outputs": num_targets}),
+        (
+            MeanSquaredError,
+            mean_squared_error,
+            sk_mean_squared_error,
+            {"squared": True, "reduce_dims": 0, "num_outputs": num_targets},
+        ),
         (MeanAbsoluteError, mean_absolute_error, sk_mean_absolute_error, {}),
         (MeanAbsolutePercentageError, mean_absolute_percentage_error, sk_mean_abs_percentage_error, {}),
         (

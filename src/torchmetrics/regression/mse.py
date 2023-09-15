@@ -171,21 +171,3 @@ class MeanSquaredError(Metric):
 
         """
         return self._plot(val, ax)
-
-
-# if __name__ == "__main__":
-#     from torch import tensor
-#
-#     target = tensor([2.5, 5.0, 4.0, 8.0])
-#     preds = tensor([3.0, 5.0, 2.5, 7.0])
-#     mean_squared_error = MeanSquaredError()
-#     print(mean_squared_error(preds, target))
-#
-#     target = torch.rand(size=(2, 5, 7))
-#     preds = pred = target + 2
-#
-#     mean_squared_error = MeanSquaredError()
-#     print(mean_squared_error(preds, target))
-#
-#     mean_squared_error = MeanSquaredError(num_outputs=5, reduce_dims=(0, 2))
-#     print(mean_squared_error(preds, target))
