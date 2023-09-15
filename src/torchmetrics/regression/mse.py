@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Any, Optional, Sequence, Union
+from typing import Any, Literal, Optional, Sequence, Union
 
 import torch
 from torch import Tensor, tensor
@@ -43,7 +43,10 @@ class MeanSquaredError(Metric):
 
     Args:
         squared: If True returns MSE value, if False returns RMSE value.
-        num_outputs: Number of outputs in multioutput setting
+        num_outputs: shape of outputs in multioutput setting.
+        reduce_dims: dimensions to reduce. Defaults to "all" meaning
+            a single number will be produced. The remaing shape should
+            have the shape num_outputs.
         kwargs: Additional keyword arguments, see :ref:`Metric kwargs` for more info.
 
     Example::
@@ -80,7 +83,8 @@ class MeanSquaredError(Metric):
     def __init__(
         self,
         squared: bool = True,
-        num_outputs: int = 1,
+        num_outputs: int | tuple[int] = 1,
+        reduce_dims: int | tuple[int] | Literal["all"] = "all",
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -89,16 +93,35 @@ class MeanSquaredError(Metric):
             raise ValueError(f"Expected argument `squared` to be a boolean but got {squared}")
         self.squared = squared
 
-        if not (isinstance(num_outputs, int) and num_outputs > 0):
-            raise ValueError(f"Expected num_outputs to be a positive integer but got {num_outputs}")
-        self.num_outputs = num_outputs
+        if not (isinstance(num_outputs, int) and num_outputs > 0) and not (
+            isinstance(num_outputs, tuple)
+            and all(isinstance(dim_size, int) and dim_size > 0 for dim_size in num_outputs)
+        ):
+            print(num_outputs)
+            raise ValueError(
+                f"Expected num_outputs to be a positive integer or a tuple of positive integers but got {num_outputs}"
+            )
+        self.output_size = num_outputs
+
+        if (
+            not isinstance(reduce_dims, int)
+            and not (isinstance(reduce_dims, tuple) and all(isinstance(dim, int) for dim in reduce_dims))
+            and not reduce_dims == "all"
+        ):
+            raise ValueError(
+                f'Expected reduce_dimensions to be an integer, a tuple of integers or "all" but got {reduce_dims}'
+            )
+
+        if reduce_dims == "all":
+            reduce_dims = None
+        self.reduce_dimensions = reduce_dims
 
         self.add_state("sum_squared_error", default=torch.zeros(num_outputs), dist_reduce_fx="sum")
         self.add_state("total", default=tensor(0), dist_reduce_fx="sum")
 
     def update(self, preds: Tensor, target: Tensor) -> None:
         """Update state with predictions and targets."""
-        sum_squared_error, n_obs = _mean_squared_error_update(preds, target, num_outputs=self.num_outputs)
+        sum_squared_error, n_obs = _mean_squared_error_update(preds, target, reduce_dims=self.reduce_dimensions)
 
         self.sum_squared_error += sum_squared_error
         self.total += n_obs
@@ -148,3 +171,21 @@ class MeanSquaredError(Metric):
 
         """
         return self._plot(val, ax)
+
+
+# if __name__ == "__main__":
+#     from torch import tensor
+#
+#     target = tensor([2.5, 5.0, 4.0, 8.0])
+#     preds = tensor([3.0, 5.0, 2.5, 7.0])
+#     mean_squared_error = MeanSquaredError()
+#     print(mean_squared_error(preds, target))
+#
+#     target = torch.rand(size=(2, 5, 7))
+#     preds = pred = target + 2
+#
+#     mean_squared_error = MeanSquaredError()
+#     print(mean_squared_error(preds, target))
+#
+#     mean_squared_error = MeanSquaredError(num_outputs=5, reduce_dims=(0, 2))
+#     print(mean_squared_error(preds, target))

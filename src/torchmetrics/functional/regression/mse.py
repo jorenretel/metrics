@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Tuple, Union
+from typing import Literal, Optional, Tuple, Union
 
 import torch
 from torch import Tensor
@@ -19,7 +19,9 @@ from torch import Tensor
 from torchmetrics.utilities.checks import _check_same_shape
 
 
-def _mean_squared_error_update(preds: Tensor, target: Tensor, num_outputs: int) -> Tuple[Tensor, int]:
+def _mean_squared_error_update(
+    preds: Tensor, target: Tensor, reduce_dims: Optional[int | tuple[int]] = 0
+) -> Tuple[Tensor, int]:
     """Update and returns variables required to compute Mean Squared Error.
 
     Check for same shape of input tensors.
@@ -27,16 +29,14 @@ def _mean_squared_error_update(preds: Tensor, target: Tensor, num_outputs: int) 
     Args:
         preds: Predicted tensor
         target: Ground truth tensor
-        num_outputs: Number of outputs in multioutput setting
+        reduce_dims: dimensions to reduce. Defaults to "all" meaning
+            a single number will be produced.
 
     """
     _check_same_shape(preds, target)
-    if num_outputs == 1:
-        preds = preds.view(-1)
-        target = target.view(-1)
     diff = preds - target
-    sum_squared_error = torch.sum(diff * diff, dim=0)
-    n_obs = target.shape[0]
+    sum_squared_error = torch.sum(diff * diff, dim=reduce_dims)
+    n_obs = target.numel() if reduce_dims is None else torch.tensor(target.shape)[torch.tensor(reduce_dims)].prod()
     return sum_squared_error, n_obs
 
 
@@ -59,14 +59,17 @@ def _mean_squared_error_compute(sum_squared_error: Tensor, n_obs: Union[int, Ten
     return sum_squared_error / n_obs if squared else torch.sqrt(sum_squared_error / n_obs)
 
 
-def mean_squared_error(preds: Tensor, target: Tensor, squared: bool = True, num_outputs: int = 1) -> Tensor:
+def mean_squared_error(
+    preds: Tensor, target: Tensor, squared: bool = True, reduce_dims: int | tuple[int] | Literal["all"] = "all"
+) -> Tensor:
     """Compute mean squared error.
 
     Args:
         preds: estimated labels
         target: ground truth labels
         squared: returns RMSE value if set to False
-        num_outputs: Number of outputs in multioutput setting
+        reduce_dims: dimensions to reduce. Defaults to "all" meaning a
+            a single number will be produced.
 
     Return:
         Tensor with MSE
@@ -79,5 +82,7 @@ def mean_squared_error(preds: Tensor, target: Tensor, squared: bool = True, num_
         tensor(0.2500)
 
     """
-    sum_squared_error, n_obs = _mean_squared_error_update(preds, target, num_outputs=num_outputs)
+    if reduce_dims == "all":
+        reduce_dims = None
+    sum_squared_error, n_obs = _mean_squared_error_update(preds, target, reduce_dims=reduce_dims)
     return _mean_squared_error_compute(sum_squared_error, n_obs, squared=squared)
